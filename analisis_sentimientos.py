@@ -45,3 +45,13 @@ parallel_analysis = RunnableParallel({
 })
 
 chain = preprocesar | parallel_analysis | merge_branch
+
+review_batch = [
+    "Me encantó el producto, superó mis expectativas.",
+    "El servicio fue terrible, no lo recomiendo.",
+    "Es un producto promedio, nada especial."
+]
+
+resultado_batch = chain.batch(review_batch)
+
+print(resultado_batch)
