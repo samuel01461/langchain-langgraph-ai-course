@@ -1,4 +1,4 @@
-from langchain_core.runnables import RunnableLambda
+from langchain_core.runnables import RunnableLambda, RunnableParallel
 from langchain_openai import ChatOpenAI
 import json
 
@@ -14,6 +14,8 @@ def generar_resumen(texto):
     respuesta = llm.invoke(prompt)
     return respuesta.content
 
+resumen_branch = RunnableLambda(generar_resumen)
+
 def analizar_sentimiento(texto):
     prompt = f"""Analiza el sentimiento del siguiente texto y responde unicamente en formato JSON valido: 
     {{"sentimiento": "positivo|negativo|neutro", "razon": "breve explicacion"}}
@@ -26,6 +28,8 @@ def analizar_sentimiento(texto):
     except json.JSONDecodeError:
         return {"sentimiento": "neutro", "razon": "No se pudo parsear la respuesta a JSON"}
 
+sentimiento_branch = RunnableLambda(analizar_sentimiento)
+
 def merge_results(data):
     return {
         "resumen": data["resumen"],
@@ -33,11 +37,11 @@ def merge_results(data):
         "razon": data["sentimiento_data"]["razon"]
     }
 
-def process_one(texto):
-    resumen = generar_resumen(texto)
-    sentimiento_data = analizar_sentimiento(texto)
-    
-    return merge_results(resumen, sentimiento_data)
+merge_branch = RunnableLambda(merge_results)
 
-process = RunnableLambda(process_one)
-chain = preprocesar | process
+parallel_analysis = RunnableParallel({
+    "resumen": resumen_branch,
+    "sentimiento_data": sentimiento_branch
+})
+
+chain = preprocesar | parallel_analysis | merge_branch
